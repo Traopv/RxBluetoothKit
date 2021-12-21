@@ -12,10 +12,10 @@ protocol CentralManagerRestoredStateType {
 
 /// Convenience class which helps reading state of restored CentralManager.
 public struct CentralManagerRestoredState: CentralManagerRestoredStateType {
-
+    
     /// Restored state dictionary.
     public let restoredStateData: [String: Any]
-
+    
     public unowned let centralManager: CentralManager
     /// Creates restored state information based on CoreBluetooth's dictionary
     /// - parameter restoredStateDictionary: Core Bluetooth's restored state data
@@ -24,43 +24,45 @@ public struct CentralManagerRestoredState: CentralManagerRestoredStateType {
         restoredStateData = restoredStateDictionary
         self.centralManager = centralManager
     }
-
+    
     /// Array of `Peripheral` objects which have been restored.
     /// These are peripherals that were connected to the central manager (or had a connection pending)
     /// at the time the app was terminated by the system.
     public var peripherals: [Peripheral] {
         let objects = restoredStateData[CBCentralManagerRestoredStatePeripheralsKey] as? [AnyObject]
         guard let arrayOfAnyObjects = objects else { return [] }
-
-        #if swift(>=4.1)
+        
+    #if swift(>=4.1)
         let cbPeripherals = arrayOfAnyObjects.compactMap { $0 as? CBPeripheral }
-        #else
+    #else
         let cbPeripherals = arrayOfAnyObjects.flatMap { $0 as? CBPeripheral }
-        #endif
-
+    #endif
+        
         return cbPeripherals.map { centralManager.retrievePeripheral(for: $0) }
     }
-
+    
     /// Dictionary that contains all of the peripheral scan options that were being used
     /// by the central manager at the time the app was terminated by the system.
     public var scanOptions: [String: AnyObject]? {
         return restoredStateData[CBCentralManagerRestoredStatePeripheralsKey] as? [String: AnyObject]
     }
-
+    
     /// Array of `Service` objects which have been restored.
     /// These are all the services the central manager was scanning for at the time the app
     /// was terminated by the system.
     public var services: [Service] {
         let objects = restoredStateData[CBCentralManagerRestoredStateScanServicesKey] as? [AnyObject]
         guard let arrayOfAnyObjects = objects else { return [] }
-
-        #if swift(>=4.1)
+        
+    #if swift(>=4.1)
         let cbServices = arrayOfAnyObjects.compactMap { $0 as? CBService }
-        #else
+    #else
         let cbServices = arrayOfAnyObjects.flatMap { $0 as? CBService }
-        #endif
-
-        return cbServices.map { Service(peripheral: centralManager.retrievePeripheral(for: $0.peripheral),
-                                        service: $0) }
+    #endif
+        return cbServices.map {
+            guard let cbPeripheral = $0.peripheral else { return nil }
+            let peripheral = centralManager.retrievePeripheral(for: cbPeripheral)
+            return Service(peripheral: peripheral, service: $0)
+        }.compactMap { $0 }
     }
 }
